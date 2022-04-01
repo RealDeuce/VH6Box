@@ -1,0 +1,14 @@
+1 x Raspberry Pi Pico RP2040 - https://www.digikey.com/en/products/detail/raspberry-pi/SC0915/13624793
+1 x XP Power VR10S05 - https://www.digikey.com/en/products/detail/xp-power/VR10S05/13147713
+1 x Mornsun LM350-10B12 - https://www.digikey.com/en/products/detail/mornsun-america-llc/LM350-10B12/13168268
+1 x E-Switch RE111C1021-116 - https://www.digikey.com/en/products/detail/e-switch/RE111C1021-116/4331944
+8 x E-Switch RE11131021-134 - https://www.digikey.com/en/products/detail/e-switch/RE11131021-134/2720274
+1 x Anderson Power Products, Inc. 992G2-BK - https://www.digikey.com/en/products/detail/anderson-power-products-inc/992G2-BK/10650143
+2 x Anderson Power Products, Inc. 5915-BK - https://www.digikey.com/en/products/detail/anderson-power-products-inc/5915-BK/10650335
+2 x Molex 0347290120 - https://www.digikey.com/en/products/detail/molex/0347290120/2520776
+24 x Molex 0348033212 - https://www.digikey.com/en/products/detail/molex/0348033212/5029976
+1 x Relay Shield - https://www.amazon.com/gp/product/B08Q3QKF3D
+1 x USB Keystone - https://www.amazon.com/gp/product/B08ZN247XV
+
+Optional:
+LAN8720 module - https://www.amazon.com/gp/product/B07TJR3P1X

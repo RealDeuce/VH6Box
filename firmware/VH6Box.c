@@ -3,10 +3,8 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 
-#define POW_PORTS 8
 const uint LED_PIN = PICO_DEFAULT_LED_PIN;
 
-const uint POW_PINS[POW_PORTS] = {2, 3, 4, 5, 6, 7, 8, 9};
 enum pin_usage {
 	POWPIN_EMUv4,
 	POWPIN_EMUv5,
@@ -16,9 +14,9 @@ enum pin_usage {
 	POWPIN_UNUSED1,
 	POWPIN_UNUSED2,
 	POWPIN_UNUSED3,
-	POWPIN_LAST
+	POWPIN_COUNT
 };
-const char * const pin_names[POW_PORTS] = {
+const char * const pin_names[POWPIN_COUNT] = {
 	"EMUv4",
 	"EMUv5",
 	"NSX1",
@@ -28,8 +26,9 @@ const char * const pin_names[POW_PORTS] = {
 	"Unused2",
 	"Unused3"
 };
+const uint POW_PINS[POWPIN_COUNT] = {2, 3, 4, 5, 6, 7, 8, 9};
 
-bool pstate[POW_PORTS];
+bool pstate[POWPIN_COUNT];
 const char * const pstate_names[2] = {
 	"OFF",
 	"ON"
@@ -56,7 +55,7 @@ flash(uint count)
 	gpio_put(LED_PIN, false);
 }
 
-void
+_Noreturn void
 error(uint count)
 {
 	printf("ERROR #%u\n", count);
@@ -70,21 +69,18 @@ error(uint count)
 int
 main(void)
 {
-	assert(POWPIN_LAST == POW_PORTS);
-
-	gpio_init(LED_PIN);
-	gpio_set_dir(LED_PIN, GPIO_OUT);
 	bool pval;
 	uint pnum;
 	int ch;
 	enum {
 		init,
 		gotval,
-		gotpin,
-		err
 	} state;
 
-	for (uint i = 0; i < POW_PORTS; i++) {
+	gpio_init(LED_PIN);
+	gpio_set_dir(LED_PIN, GPIO_OUT);
+
+	for (uint i = 0; i < POWPIN_COUNT; i++) {
 		gpio_init(POW_PINS[i]);
 		gpio_set_dir(POW_PINS[i], GPIO_OUT);
 		gpio_put(POW_PINS[i], false);
@@ -111,45 +107,26 @@ main(void)
 							state = gotval;
 							break;
 						default:
-							state = err;
-							break;
+							goto error;
 					}
 					break;
 				case gotval:
 					switch (ch) {
 						case '0' ... '7':
 							pnum = ch - '0';
-							state = gotpin;
+							if (pstate[pnum] != pval) {
+								gpio_put(POW_PINS[pnum], pval);
+								pstate[pnum] = pval;
+								printf("%s %s\n", pin_names[pnum], pstate_names[pval]);
+							}
+							else {
+								printf("%s %s (Unchanged)\n", pin_names[pnum], pstate_names[pval]);
+							}
+							state = init;
 							break;
 						default:
-							state = err;
-							break;
+							goto error;
 					}
-					break;
-				case gotpin:
-					error(ERR_INVALID_GOTPIN_STATE);
-				case err:
-					error(ERR_INVALID_ERR_STATE);
-			}
-			switch (state) {
-				case gotval:
-					state = init;
-				case init:
-					break;
-				case gotpin:
-					if (pstate[pnum] != pval) {
-						gpio_put(POW_PINS[pnum], pval);
-						pstate[pnum] = pval;
-						printf("%s %s\n", pin_names[pnum], pstate_names[pval]);
-					}
-					else {
-						printf("%s %s (Unchanged)\n", pin_names[pnum], pstate_names[pval]);
-					}
-					state = init;
-					break;
-				case err:
-					puts("ERR");
-					state = init;
 					break;
 			}
 		}
@@ -157,5 +134,9 @@ main(void)
 			flash(WARN_INVALID_INPUT);
 			sleep_ms(250);
 		}
+		continue;
+error:
+		state = init;
+		puts("ERR");
 	}
 }

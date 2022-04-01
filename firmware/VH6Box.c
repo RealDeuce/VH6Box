@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include "pico/stdlib.h"
@@ -6,7 +7,40 @@
 const uint LED_PIN = PICO_DEFAULT_LED_PIN;
 
 const uint POW_PINS[POW_PORTS] = {2, 3, 4, 5, 6, 7, 8, 9};
+enum pin_usage {
+	POWPIN_EMUv4,
+	POWPIN_EMUv5,
+	POWPIN_NSX1,
+	POWPIN_NSX2,
+	POWPIN_HICO,
+	POWPIN_UNUSED1,
+	POWPIN_UNUSED2,
+	POWPIN_UNUSED3,
+	POWPIN_LAST
+};
+const char * const pin_names[POW_PORTS] = {
+	"EMUv4",
+	"EMUv5",
+	"NSX1",
+	"NSX2",
+	"HiCo",
+	"Unused1",
+	"Unused2",
+	"Unused3"
+};
+
 bool pstate[POW_PORTS];
+const char * const pstate_names[2] = {
+	"OFF",
+	"ON"
+};
+
+enum flash_patterns {
+	WARN_INVALID_INPUT = 1,
+	ERR_USB_INIT_FAILED = 5,
+	ERR_INVALID_GOTPIN_STATE,
+	ERR_INVALID_ERR_STATE,
+};
 
 void
 flash(uint count)
@@ -25,24 +59,21 @@ flash(uint count)
 void
 error(uint count)
 {
-#ifndef PICO_DEFAULT_LED_PIN
-	exit();
-#else
+	printf("ERROR #%u\n", count);
 	for (;;) {
 		flash(count);
 		sleep_ms(2000);
 	}
-#endif
 }
 
 
 int
 main(void)
 {
-#ifdef PICO_DEFAULT_LED_PIN
+	assert(POWPIN_LAST == POW_PORTS);
+
 	gpio_init(LED_PIN);
 	gpio_set_dir(LED_PIN, GPIO_OUT);
-#endif
 	bool pval;
 	uint pnum;
 	int ch;
@@ -61,7 +92,7 @@ main(void)
 	}
 
 	if (!stdio_usb_init())
-		error(1);
+		error(ERR_USB_INIT_FAILED);
 
 	for (;;) {
 		if (stdio_usb_connected()) {
@@ -96,23 +127,23 @@ main(void)
 					}
 					break;
 				case gotpin:
-					error(3);
+					error(ERR_INVALID_GOTPIN_STATE);
 				case err:
-					error(4);
+					error(ERR_INVALID_ERR_STATE);
 			}
 			switch (state) {
-				case init:
-					error(5);
 				case gotval:
+					state = init;
+				case init:
 					break;
 				case gotpin:
 					if (pstate[pnum] != pval) {
 						gpio_put(POW_PINS[pnum], pval);
 						pstate[pnum] = pval;
-						puts("OK");
+						printf("%s %s\n", pin_names[pnum], pstate_names[pval]);
 					}
 					else {
-						puts("NC");
+						printf("%s %s (Unchanged)\n", pin_names[pnum], pstate_names[pval]);
 					}
 					state = init;
 					break;
@@ -123,7 +154,7 @@ main(void)
 			}
 		}
 		else {
-			flash(1);
+			flash(WARN_INVALID_INPUT);
 			sleep_ms(250);
 		}
 	}

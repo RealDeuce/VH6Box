@@ -1,10 +1,12 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <strings.h>
 #include "pico/stdlib.h"
 
 const uint LED_PIN = PICO_DEFAULT_LED_PIN;
 
+// Pin numbers
 enum pin_usage {
 	POWPIN_EMUv4,
 	POWPIN_EMUv5,
@@ -16,6 +18,8 @@ enum pin_usage {
 	POWPIN_UNUSED3,
 	POWPIN_COUNT
 };
+
+// Pin names
 const char * const pin_names[POWPIN_COUNT] = {
 	"EMUv4",
 	"EMUv5",
@@ -26,6 +30,20 @@ const char * const pin_names[POWPIN_COUNT] = {
 	"Unused2",
 	"Unused3"
 };
+
+/*
+ * Sets of mutually exclusive pins.  If any of these are turned on,
+ * all are turned off first, followed by a settle_time millisecond
+ * delay.  Note that the delay is not enforced unless the firmware
+ * decides to turn off a pin... you can toggle them faster directly
+ * if you want.
+ */
+const uint mutually_exclusive[] = {
+	(1 << POWPIN_EMUv4) | (1 << POWPIN_EMUv5)
+};
+const uint excl_cnt = sizeof(mutually_exclusive) / sizeof(mutually_exclusive[0]);
+const uint settle_time = 100;
+
 const uint POW_PINS[POWPIN_COUNT] = {2, 3, 4, 5, 6, 7, 8, 9};
 
 bool pstate[POWPIN_COUNT];
@@ -39,6 +57,7 @@ enum flash_patterns {
 	ERR_USB_INIT_FAILED = 5,
 	ERR_INVALID_GOTPIN_STATE,
 	ERR_INVALID_ERR_STATE,
+	ERR_NO_BIT_SET,
 };
 
 void
@@ -65,6 +84,40 @@ error(uint count)
 	}
 }
 
+void
+set_pin(uint pnum, bool pval)
+{
+	if (pval == pstate[pnum]) {
+		printf("%s %s (Unchanged)\n", pin_names[pnum], pstate_names[pval]);
+		return;
+	}
+
+	// If we're turning the pin on, turn off any mutually exclusive pins
+	if (pval) {
+		bool toggled = false;
+		for (uint i = 0; i < excl_cnt; i++) {
+			if (mutually_exclusive[i] & (1 << pnum)) {
+				for (uint check = mutually_exclusive[i]; check; check = check & (check -1)) {
+					uint bit = ffs(check);
+					if (bit < 1)
+						error(ERR_NO_BIT_SET);
+					bit--;
+					if (pstate[bit]) {
+						gpio_put(POW_PINS[bit], false);
+						pstate[bit] = false;
+						toggled = true;
+					}
+				}
+			}
+		}
+		if (toggled)
+			sleep_ms(settle_time);
+	}
+
+	gpio_put(POW_PINS[pnum], pval);
+	pstate[pnum] = pval;
+	printf("%s %s\n", pin_names[pnum], pstate_names[pval]);
+}
 
 int
 main(void)
@@ -92,7 +145,7 @@ main(void)
 
 	for (;;) {
 		if (stdio_usb_connected()) {
-			// Wait for CRLF?
+			// TODO: Wait for CRLF?
 			ch = getchar_timeout_us(10000);
 			if (ch == PICO_ERROR_TIMEOUT) {
 				state = init;
@@ -114,14 +167,7 @@ main(void)
 					switch (ch) {
 						case '0' ... '7':
 							pnum = ch - '0';
-							if (pstate[pnum] != pval) {
-								gpio_put(POW_PINS[pnum], pval);
-								pstate[pnum] = pval;
-								printf("%s %s\n", pin_names[pnum], pstate_names[pval]);
-							}
-							else {
-								printf("%s %s (Unchanged)\n", pin_names[pnum], pstate_names[pval]);
-							}
+							set_pin(pnum, pval);
 							state = init;
 							break;
 						default:
@@ -131,6 +177,7 @@ main(void)
 			}
 		}
 		else {
+			state = init;
 			flash(WARN_INVALID_INPUT);
 			sleep_ms(250);
 		}

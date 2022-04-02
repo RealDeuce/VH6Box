@@ -23,8 +23,8 @@ enum pin_usage {
 const char * const pin_names[POWPIN_COUNT] = {
 	"EMUv4",
 	"EMUv5",
-	"NSX1",
-	"NSX2",
+	"NS1",
+	"NS2",
 	"HiCo",
 	"Unused1",
 	"Unused2",

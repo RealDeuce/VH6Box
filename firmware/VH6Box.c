@@ -106,6 +106,7 @@ set_pin(uint pnum, bool pval)
 						gpio_put(POW_PINS[bit], false);
 						pstate[bit] = false;
 						toggled = true;
+						printf("%s %s\n", pin_names[bit], pstate_names[false]);
 					}
 				}
 			}
@@ -146,7 +147,7 @@ main(void)
 	for (;;) {
 		if (stdio_usb_connected()) {
 			// TODO: Wait for CRLF?
-			ch = getchar_timeout_us(10000);
+			ch = getchar_timeout_us(10000000);
 			if (ch == PICO_ERROR_TIMEOUT) {
 				state = init;
 				continue;

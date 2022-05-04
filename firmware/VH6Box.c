@@ -120,6 +120,32 @@ set_pin(uint pnum, bool pval)
 	printf("%s %s\n", pin_names[pnum], pstate_names[pval]);
 }
 
+bool
+compat_func(void)
+{
+	int ch;
+	char cmd[2];
+	int i;
+
+	for (i = 0; i < sizeof(cmd); i++) {
+		if (stdio_usb_connected()) {
+			// TODO: Wait for CRLF?
+			ch = getchar_timeout_us(10000000);
+			if (ch == PICO_ERROR_TIMEOUT)
+				return false;
+			cmd[i] = ch;
+		}
+		else
+			return false;
+	}
+	if (cmd[0] < 1 || cmd[0] > POWPIN_COUNT)
+		return false;
+	if (cmd[1] < 0 || cmd[1] > 1)
+		return false;
+	set_pin(cmd[0] - 1, cmd[1] == 1);
+	return true;
+}
+
 int
 main(void)
 {
@@ -159,6 +185,12 @@ main(void)
 						case '-':
 							pval = ch & 0x02; // 0x02 for +, 0 for -
 							state = gotval;
+							break;
+						case '\xff':
+							// Compatibility with Amazon USB controlled relay: https://www.amazon.com/SainSmart-Channel-Automation-Arduino-Raspberry/dp/B009A5246E/
+							// 0xff <1-based channel byte> <0 = off, 1 = on>
+							if (!compat_func())
+								goto error;
 							break;
 						default:
 							goto error;
